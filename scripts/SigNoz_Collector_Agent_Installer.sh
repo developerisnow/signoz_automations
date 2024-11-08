@@ -29,7 +29,7 @@ SIGNOZ_SERVER="$1"
 # Install required packages
 echo -e "${YELLOW}Installing required packages...${NC}"
 apt-get update
-apt-get install -y wget systemctl screen
+apt-get install -y wget systemctl screen dos2unix envsubst gettext-base
 
 # Create screen session if not already in one
 if [ -z "$STY" ]; then
@@ -76,3 +76,10 @@ echo -e "${YELLOW}To reattach later: screen -r signoz${NC}"
 
 # Show logs
 journalctl -u otelcol-contrib -f
+
+# Check for newer versions
+echo -e "${YELLOW}Checking for script updates...${NC}"
+LATEST_VERSION=$(curl -s https://api.github.com/repos/developerisnow/signoz_automations/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+if [ "$LATEST_VERSION" != "v$SCRIPT_VERSION" ]; then
+    echo -e "${YELLOW}New version available: $LATEST_VERSION${NC}"
+fi

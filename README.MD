@@ -13,20 +13,15 @@ This repository contains automation scripts and templates for setting up SigNoz 
 ### Quick Installation
 
 ```bash
-# Install with your SigNoz server address (required)
-wget https://raw.githubusercontent.com/developerisnow/signoz_automations/main/scripts/SigNoz_Collector_Agent_Installer.sh && \
-bash SigNoz_Collector_Agent_Installer.sh "your-signoz-server:4317"
+# Method 1: Direct download and execute (Recommended)
+curl -fsSL https://raw.githubusercontent.com/developerisnow/signoz_automations/main/scripts/SigNoz_Collector_Agent_Installer.sh -o install.sh && \
+dos2unix install.sh && \
+sudo bash install.sh "your-signoz-server:4317"
 
-# Example:
-wget https://raw.githubusercontent.com/developerisnow/signoz_automations/main/scripts/SigNoz_Collector_Agent_Installer.sh && \
-bash SigNoz_Collector_Agent_Installer.sh "192.168.1.100:4317"
-
-# The installation will run in a screen session named 'signoz'
-# To attach to the installation process:
-screen -r signoz
-
-# To detach from the screen session: Press Ctrl+A, then D
-# To reattach later: screen -r signoz
+# Method 2: For systems without curl
+wget -q https://raw.githubusercontent.com/developerisnow/signoz_automations/main/scripts/SigNoz_Collector_Agent_Installer.sh -O install.sh && \
+dos2unix install.sh && \
+sudo bash install.sh "your-signoz-server:4317"
 ```
 
 ### Manual Installation

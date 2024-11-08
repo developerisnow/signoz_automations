@@ -1,0 +1,29 @@
+name: Validate Scripts
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Check file encoding
+        run: |
+          sudo apt-get install -y dos2unix
+          for file in $(find . -type f -name "*.sh"); do
+            if file "$file" | grep -q "CRLF"; then
+              echo "Error: $file contains CRLF line endings"
+              exit 1
+            fi
+          done
+
+      - name: Shell script validation
+        run: |
+          for file in $(find . -type f -name "*.sh"); do
+            bash -n "$file" || exit 1
+          done
