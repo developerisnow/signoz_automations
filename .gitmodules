@@ -1,0 +1,3 @@
+[submodule "dashboards"]
+	path = dashboards
+	url = https://github.com/developerisnow/signoz-dashboards.git
