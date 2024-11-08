@@ -33,9 +33,19 @@ fi
 SIGNOZ_SERVER="$1"
 
 # Install required packages
-echo -e "${YELLOW}Installing required packages...${NC}"
-apt-get update
-apt-get install -y wget screen gettext-base
+echo -e "${YELLOW}Installing required packages: ${PACKAGES}${NC}"
+PACKAGES="wget screen gettext-base"
+for pkg in $PACKAGES; do
+    if ! dpkg -l | grep -q "^ii  $pkg "; then
+        apt-get install -y $pkg
+    fi
+done
+
+# Check if envsubst is available
+if ! command -v envsubst >/dev/null 2>&1; then
+    echo -e "${RED}Error: envsubst not found. Installing gettext-base...${NC}"
+    apt-get install -y gettext-base
+fi
 
 # Create screen session if not already in one
 if [ -z "$STY" ]; then

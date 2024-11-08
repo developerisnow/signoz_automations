@@ -8,22 +8,47 @@ This repository contains automation scripts and templates for setting up SigNoz 
 - Debian/Ubuntu-based Linux system
 - systemd (Ubuntu 18.04 or newer)
 - Root or sudo access
-- `curl` or `wget` installed
-- Basic system utilities (will be installed if missing)
-- SigNoz server already running and accessible
+- Basic system utilities (will be installed automatically):
+  - wget
+  - screen
+  - gettext-base (for envsubst)
 
 ### Quick Installation
 
 ```bash
-# Method 1: Direct download and execute (Recommended)
+# Single command installation (Recommended)
 curl -fsSL https://raw.githubusercontent.com/developerisnow/signoz_automations/main/scripts/SigNoz_Collector_Agent_Installer.sh -o install.sh && \
-dos2unix install.sh && \
+chmod +x install.sh && \
 sudo bash install.sh "your-signoz-server:4317"
+```
 
-# Method 2: For systems without curl
+# Alternative installation for systems without curl
+```bash
 wget -q https://raw.githubusercontent.com/developerisnow/signoz_automations/main/scripts/SigNoz_Collector_Agent_Installer.sh -O install.sh && \
-dos2unix install.sh && \
+chmod +x install.sh && \
 sudo bash install.sh "your-signoz-server:4317"
+```
+
+### Troubleshooting
+
+If you encounter any errors:
+
+1. Check system requirements:
+```bash
+# Check Ubuntu version
+lsb_release -a
+
+# Check systemd
+systemctl --version
+
+# Check if required packages are installed
+dpkg -l | grep -E "wget|screen|gettext-base"
+```
+
+2. Manual package installation if needed:
+```bash
+sudo apt-get update
+sudo apt-get install -y wget screen gettext-base
 ```
 
 ### Manual Installation
