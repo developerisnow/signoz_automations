@@ -16,6 +16,12 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Check system compatibility
+if ! command -v systemctl >/dev/null 2>&1; then
+    echo -e "${RED}Error: systemd is required but not installed${NC}"
+    exit 1
+fi
+
 # Check arguments
 if [ -z "$1" ]; then
     echo -e "${RED}Error: SigNoz server address is required${NC}"
@@ -29,7 +35,7 @@ SIGNOZ_SERVER="$1"
 # Install required packages
 echo -e "${YELLOW}Installing required packages...${NC}"
 apt-get update
-apt-get install -y wget systemctl screen dos2unix envsubst gettext-base
+apt-get install -y wget screen gettext-base
 
 # Create screen session if not already in one
 if [ -z "$STY" ]; then
@@ -42,8 +48,21 @@ fi
 
 # Install OpenTelemetry Collector
 echo -e "${YELLOW}Installing OpenTelemetry Collector...${NC}"
-wget -q "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_VERSION}/otelcol-contrib_${OTEL_VERSION}_linux_amd64.deb" -O /tmp/otelcol-contrib.deb
-dpkg -i /tmp/otelcol-contrib.deb
+if ! wget -q "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_VERSION}/otelcol-contrib_${OTEL_VERSION}_linux_amd64.deb" -O /tmp/otelcol-contrib.deb; then
+    echo -e "${RED}Failed to download OpenTelemetry Collector${NC}"
+    exit 1
+fi
+
+if ! dpkg -i /tmp/otelcol-contrib.deb; then
+    echo -e "${RED}Failed to install OpenTelemetry Collector${NC}"
+    echo -e "${YELLOW}Attempting to fix dependencies...${NC}"
+    apt-get install -f -y
+    if ! dpkg -i /tmp/otelcol-contrib.deb; then
+        echo -e "${RED}Installation failed${NC}"
+        exit 1
+    fi
+fi
+
 rm /tmp/otelcol-contrib.deb
 
 # Configure OpenTelemetry Collector
@@ -52,7 +71,11 @@ export HOSTNAME=${HOSTNAME:-$(hostname)}
 export SIGNOZ_SERVER=$SIGNOZ_SERVER
 
 mkdir -p /etc/otelcol-contrib
-wget -q https://raw.githubusercontent.com/developerisnow/signoz_automations/main/configs/config_template.yaml -O /tmp/config_template.yaml
+if ! wget -q https://raw.githubusercontent.com/developerisnow/signoz_automations/main/configs/config_template.yaml -O /tmp/config_template.yaml; then
+    echo -e "${RED}Failed to download config template${NC}"
+    exit 1
+fi
+
 envsubst < /tmp/config_template.yaml > /etc/otelcol-contrib/config.yaml
 rm /tmp/config_template.yaml
 
@@ -64,7 +87,8 @@ systemctl restart otelcol-contrib
 if systemctl is-active --quiet otelcol-contrib; then
     echo -e "${GREEN}Service started successfully!${NC}"
 else
-    echo -e "${RED}Service failed to start. Check logs with: journalctl -u otelcol-contrib${NC}"
+    echo -e "${RED}Service failed to start. Checking logs...${NC}"
+    journalctl -u otelcol-contrib -n 50
     exit 1
 fi
 

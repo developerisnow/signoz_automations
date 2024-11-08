@@ -6,8 +6,10 @@ This repository contains automation scripts and templates for setting up SigNoz 
 
 ### Prerequisites
 - Debian/Ubuntu-based Linux system
+- systemd (Ubuntu 18.04 or newer)
 - Root or sudo access
 - `curl` or `wget` installed
+- Basic system utilities (will be installed if missing)
 - SigNoz server already running and accessible
 
 ### Quick Installation
