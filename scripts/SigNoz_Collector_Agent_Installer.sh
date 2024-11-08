@@ -53,12 +53,46 @@ export HOSTNAME=${HOSTNAME:-$(hostname)}
 export SIGNOZ_SERVER=$SIGNOZ_SERVER
 
 mkdir -p /etc/otelcol-contrib
+
+# Create environment file for systemd service
+echo -e "${YELLOW}Creating environment file...${NC}"
+cat > /etc/otelcol-contrib/environment <<EOF
+HOSTNAME=${HOSTNAME}
+SIGNOZ_SERVER=${SIGNOZ_SERVER}
+EOF
+
+# Create systemd override directory
+mkdir -p /etc/systemd/system/otelcol-contrib.service.d
+
+# Create systemd override file
+cat > /etc/systemd/system/otelcol-contrib.service.d/override.conf <<EOF
+[Service]
+EnvironmentFile=/etc/otelcol-contrib/environment
+EOF
+
+# Download config
 wget -q https://raw.githubusercontent.com/developerisnow/signoz_automations/main/configs/config_template.yaml -O /etc/otelcol-contrib/config.yaml
 
 # Start service
 echo -e "${YELLOW}Starting OpenTelemetry Collector service...${NC}"
+systemctl daemon-reload
 systemctl enable otelcol-contrib
 systemctl restart otelcol-contrib
+
+# Wait for service to start
+sleep 2
+
+# Check configuration
+if ! systemctl status otelcol-contrib >/dev/null 2>&1; then
+    echo -e "${RED}Service failed to start. Checking configuration...${NC}"
+    echo -e "${YELLOW}Environment variables:${NC}"
+    cat /etc/otelcol-contrib/environment
+    echo -e "${YELLOW}Config file:${NC}"
+    cat /etc/otelcol-contrib/config.yaml
+    echo -e "${YELLOW}Service logs:${NC}"
+    journalctl -u otelcol-contrib -n 50
+    exit 1
+fi
 
 if systemctl is-active --quiet otelcol-contrib; then
     echo -e "${GREEN}Service started successfully!${NC}"
