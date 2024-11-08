@@ -49,12 +49,60 @@ fi
 
 # Create screen session if not already in one
 if [ -z "$STY" ]; then
+    # Check if installation is already running
+    if screen -ls | grep -q "signoz"; then
+        echo -e "${RED}Installation already running in screen session${NC}"
+        echo -e "${YELLOW}To view installation:${NC}"
+        echo -e "${YELLOW}1. Check running screens: screen -ls${NC}"
+        echo -e "${YELLOW}2. Attach to screen: screen -r <session-id>${NC}"
+        echo -e "${YELLOW}3. To detach from screen: Ctrl+A, then D${NC}"
+        exit 1
+    fi
+
+    # Clean up any dead screens
+    screen -wipe >/dev/null 2>&1
+
     echo -e "${YELLOW}Starting screen session 'signoz'...${NC}"
-    exec screen -S signoz -dm bash -c "$0 $1"
+    # Create screen session with full path and debug output
+    SCRIPT_PATH=$(readlink -f "$0")
+    echo -e "${YELLOW}Running script: $SCRIPT_PATH${NC}"
+    echo -e "${YELLOW}With argument: $1${NC}"
+    
+    if ! screen -S signoz -L -Logfile /tmp/signoz_screen.log -dm bash -c "$SCRIPT_PATH '$1'"; then
+        echo -e "${RED}Failed to create screen session${NC}"
+        echo -e "${YELLOW}Check screen log: cat /tmp/signoz_screen.log${NC}"
+        exit 1
+    fi
+
+    # Verify screen session was created
+    sleep 2
+    if ! screen -ls | grep -q "signoz"; then
+        echo -e "${RED}Screen session failed to start${NC}"
+        echo -e "${YELLOW}Last screen log:${NC}"
+        tail -n 5 /tmp/signoz_screen.log
+        exit 1
+    fi
+
     echo -e "${GREEN}Installation running in screen session. To attach:${NC}"
-    echo -e "${YELLOW}screen -r signoz${NC}"
+    echo -e "${YELLOW}1. Wait 5 seconds for session to start${NC}"
+    echo -e "${YELLOW}2. Run: screen -r signoz${NC}"
+    sleep 5
     exit 0
 fi
+
+# Add installation lock
+LOCK_FILE="/tmp/signoz_install.lock"
+if [ -f "$LOCK_FILE" ]; then
+    echo -e "${RED}Another installation is in progress${NC}"
+    exit 1
+fi
+touch "$LOCK_FILE"
+
+# Cleanup function
+cleanup() {
+    rm -f "$LOCK_FILE"
+}
+trap cleanup EXIT
 
 # Install OpenTelemetry Collector
 echo -e "${YELLOW}Installing OpenTelemetry Collector...${NC}"

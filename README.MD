@@ -20,6 +20,14 @@ This repository contains automation scripts and templates for setting up SigNoz 
 curl -fsSL https://raw.githubusercontent.com/developerisnow/signoz_automations/main/scripts/SigNoz_Collector_Agent_Installer.sh -o install.sh && \
 chmod +x install.sh && \
 sudo bash install.sh "your-signoz-server:4317"
+
+# After running the command:
+# 1. Wait 5 seconds for the screen session to start
+# 2. Attach to the installation screen:
+screen -r signoz
+
+# If you see "There is a screen on: XXXX.signoz (Attached)"
+# It means the installation is running. Wait a few minutes and try again.
 ```
 
 # Alternative installation for systems without curl
@@ -124,3 +132,19 @@ Feel free to submit issues and pull requests.
 ## License
 
 MIT License - see LICENSE file for details
+
+### Managing Installation
+
+```bash
+# List all screen sessions
+screen -ls
+
+# Attach to installation screen
+screen -r signoz
+
+# Detach from screen (when attached)
+# Press Ctrl+A, then D
+
+# Kill stuck installation (if needed)
+screen -ls | grep signoz | cut -d. -f1 | xargs -I{} screen -X -S {} quit
+```
