@@ -32,7 +32,7 @@ check_requirements() {
     }
 
     # Check for required commands
-    local required_commands=("wget" "systemctl")
+    local required_commands=("wget" "systemctl" "screen")
     for cmd in "${required_commands[@]}"; do
         if ! command_exists "$cmd"; then
             print_message "Installing $cmd..." "${YELLOW}"
@@ -106,6 +106,15 @@ main() {
     
     SIGNOZ_SERVER="$1"
     
+    # Create new screen session if not already in one
+    if [ -z "$STY" ]; then
+        print_message "Starting screen session 'signoz'..." "${YELLOW}"
+        exec screen -S signoz -dm bash -c "$0 $1"
+        print_message "Installation running in screen session. To attach:" "${GREEN}"
+        print_message "screen -r signoz" "${YELLOW}"
+        exit 0
+    fi
+    
     # Run installation steps
     check_requirements
     install_otel_collector
@@ -115,6 +124,11 @@ main() {
     print_message "Installation completed successfully!" "${GREEN}"
     print_message "Collector is sending metrics to: $SIGNOZ_SERVER" "${GREEN}"
     print_message "Check logs with: journalctl -u otelcol-contrib -f" "${YELLOW}"
+    print_message "\nTo detach from screen: Press Ctrl+A, then D" "${YELLOW}"
+    print_message "To reattach later: screen -r signoz" "${YELLOW}"
+    
+    # Automatically show logs after installation
+    journalctl -u otelcol-contrib -f
 }
 
 # Run main function with command line arguments

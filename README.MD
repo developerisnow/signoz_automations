@@ -18,6 +18,13 @@ curl -s https://raw.githubusercontent.com/developerisnow/signoz_automations/main
 
 # Example:
 curl -s https://raw.githubusercontent.com/developerisnow/signoz_automations/main/scripts/SigNoz_Collector_Agent_Installer.sh | sudo bash -s "192.168.1.100:4317"
+
+# The installation will run in a screen session named 'signoz'
+# To attach to the installation process:
+screen -r signoz
+
+# To detach from the screen session: Press Ctrl+A, then D
+# To reattach later: screen -r signoz
 ```
 
 ### Manual Installation
@@ -36,6 +43,16 @@ chmod +x scripts/SigNoz_Collector_Agent_Installer.sh
 3. Run the installer with your SigNoz server address:
 ```bash
 sudo ./scripts/SigNoz_Collector_Agent_Installer.sh "your-signoz-server:4317"
+```
+
+The installation will automatically:
+1. Create a screen session named 'signoz'
+2. Install and configure the collector
+3. Show real-time logs after installation
+
+You can safely detach from the screen session (Ctrl+A, then D) and reattach later with:
+```bash
+screen -r signoz
 ```
 
 ### Configuration
