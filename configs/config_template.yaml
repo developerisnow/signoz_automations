@@ -1,0 +1,55 @@
+extensions:
+  health_check:
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+  
+  hostmetrics/system:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      load:
+      memory:
+      disk:
+      filesystem:
+      network:
+      processes:
+
+processors:
+  batch:
+  resourcedetection:
+    detectors: [system]
+    system:
+      hostname_sources: [os]
+  attributes:
+    actions:
+      - key: "host.name"
+        value: "${HOSTNAME}"
+        action: "insert"
+      - key: "service.name"
+        value: "vps-monitoring"
+        action: "insert"
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlp:
+    endpoint: "${SIGNOZ_SERVER}"
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [hostmetrics/system]
+      processors: [batch, resourcedetection, attributes]
+      exporters: [debug, otlp]
+
+  extensions: [health_check, pprof, zpages]
