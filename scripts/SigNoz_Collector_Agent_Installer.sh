@@ -18,7 +18,7 @@ print_message() {
 
 # Function to check if command exists
 command_exists() {
-    command -v "$1" >/dev/null 2>&1
+    which "$1" >/dev/null 2>&1
 }
 
 # Function to check system requirements
