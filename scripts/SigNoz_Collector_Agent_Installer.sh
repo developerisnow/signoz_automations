@@ -25,11 +25,12 @@ if [ -z "$1" ]; then
 fi
 
 SIGNOZ_SERVER="$1"
+HOSTNAME=$(hostname)
 
 # Install required packages
 echo -e "${YELLOW}Installing required packages...${NC}"
 apt-get update
-apt-get install -y wget screen gettext-base
+apt-get install -y wget
 
 # Install OpenTelemetry Collector
 echo -e "${YELLOW}Installing OpenTelemetry Collector...${NC}"
@@ -47,31 +48,89 @@ fi
 
 rm /tmp/otelcol-contrib.deb
 
+# Create service file
+echo -e "${YELLOW}Creating service file...${NC}"
+cat > /lib/systemd/system/otelcol-contrib.service <<EOF
+[Unit]
+Description=OpenTelemetry Collector Contrib
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/otelcol-contrib --config /etc/otelcol-contrib/config.yaml
+Restart=always
+RestartSec=1
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 # Configure OpenTelemetry Collector
 echo -e "${YELLOW}Configuring OpenTelemetry Collector...${NC}"
-export HOSTNAME=${HOSTNAME:-$(hostname)}
-export SIGNOZ_SERVER=$SIGNOZ_SERVER
-
 mkdir -p /etc/otelcol-contrib
 
-# Create environment file for systemd service
-echo -e "${YELLOW}Creating environment file...${NC}"
-cat > /etc/otelcol-contrib/environment <<EOF
-HOSTNAME=${HOSTNAME}
-SIGNOZ_SERVER=${SIGNOZ_SERVER}
+# Create config with hardcoded values
+cat > /etc/otelcol-contrib/config.yaml <<EOF
+extensions:
+  health_check:
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+   
+  hostmetrics/system:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+      load:
+      memory:
+      disk:
+      filesystem:
+      network:
+      processes:
+
+processors:
+  batch:
+  resourcedetection:
+    detectors: [system]
+    system:
+      hostname_sources: [os]
+  attributes:
+    actions:
+      - key: "host.name"
+        value: "$HOSTNAME"
+        action: "insert"
+      - key: "service.name"
+        value: "vps-monitoring"
+        action: "insert"
+
+exporters:
+  debug:
+    verbosity: detailed
+  otlp:
+    endpoint: "$SIGNOZ_SERVER"
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [hostmetrics/system]
+      processors: [batch, resourcedetection, attributes]
+      exporters: [debug, otlp]
+
+  extensions: [health_check, pprof, zpages]
 EOF
 
-# Create systemd override directory
-mkdir -p /etc/systemd/system/otelcol-contrib.service.d
-
-# Create systemd override file
-cat > /etc/systemd/system/otelcol-contrib.service.d/override.conf <<EOF
-[Service]
-EnvironmentFile=/etc/otelcol-contrib/environment
-EOF
-
-# Download config
-wget -q https://raw.githubusercontent.com/developerisnow/signoz_automations/main/configs/config_template.yaml -O /etc/otelcol-contrib/config.yaml
+# Set permissions
+chmod 644 /etc/otelcol-contrib/config.yaml
+chown -R root:root /etc/otelcol-contrib
 
 # Start service
 echo -e "${YELLOW}Starting OpenTelemetry Collector service...${NC}"
@@ -82,25 +141,17 @@ systemctl restart otelcol-contrib
 # Wait for service to start
 sleep 2
 
-# Check configuration
-if ! systemctl status otelcol-contrib >/dev/null 2>&1; then
-    echo -e "${RED}Service failed to start. Checking configuration...${NC}"
-    echo -e "${YELLOW}Environment variables:${NC}"
-    cat /etc/otelcol-contrib/environment
-    echo -e "${YELLOW}Config file:${NC}"
+# Check service status
+if ! systemctl is-active --quiet otelcol-contrib; then
+    echo -e "${RED}Service failed to start. Checking logs...${NC}"
+    echo -e "${YELLOW}Config file contents:${NC}"
     cat /etc/otelcol-contrib/config.yaml
     echo -e "${YELLOW}Service logs:${NC}"
     journalctl -u otelcol-contrib -n 50
     exit 1
 fi
 
-if systemctl is-active --quiet otelcol-contrib; then
-    echo -e "${GREEN}Service started successfully!${NC}"
-    echo -e "${GREEN}Collector is sending metrics to: $SIGNOZ_SERVER${NC}"
-    echo -e "${YELLOW}Check logs with: journalctl -u otelcol-contrib -f${NC}"
-    journalctl -u otelcol-contrib -f
-else
-    echo -e "${RED}Service failed to start. Checking logs...${NC}"
-    journalctl -u otelcol-contrib -n 50
-    exit 1
-fi
+echo -e "${GREEN}Service started successfully!${NC}"
+echo -e "${GREEN}Collector is sending metrics to: $SIGNOZ_SERVER${NC}"
+echo -e "${YELLOW}Check logs with: journalctl -u otelcol-contrib -f${NC}"
+journalctl -u otelcol-contrib -f
